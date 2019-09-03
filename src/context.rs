@@ -1,17 +1,22 @@
 use crate::config::Config;
 use crate::module::Module;
+use crate::utils;
 
+use dirs::home_dir;
 use clap::ArgMatches;
 use git2::Repository;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 /// Context contains data or common methods that may be used by multiple modules.
 /// The data contained within Context will be relevant to this particular rendering
 /// of the prompt.
 pub struct Context<'a> {
+    pub cache: HashMap<String, String>,
+
     /// The deserialized configuration map from the user's `starship.toml` file.
     pub config: toml::value::Table,
 
@@ -53,6 +58,26 @@ impl<'a> Context<'a> {
     {
         let config = toml::value::Table::initialize();
 
+        let cache_path = home_dir().unwrap().join(".config/.starship-cache");
+        let config_path_str = cache_path.to_str().unwrap().to_owned();
+        let cache_content = utils::read_file(&config_path_str).ok();
+        
+        let cache: HashMap<String, String>;
+        if let Some(content) = cache_content {
+            // Provide vector of lines of binaries and hashes
+            cache = content.trim().split('\n')
+                .map(|kv| kv.split('\t').collect::<Vec<&str>>())
+                .map(|vec| {
+                    assert_eq!(vec.len(), 2);
+                    (vec[0].to_string(), vec[1].to_string())
+                })
+                .collect();
+        } else {
+            cache = HashMap::new()
+        }
+
+        log::debug!("Loaded cache with contents:\n{:?}", &cache);
+
         // TODO: Currently gets the physical directory. Get the logical directory.
         let current_dir = Context::expand_tilde(dir.into());
 
@@ -76,6 +101,7 @@ impl<'a> Context<'a> {
             .and_then(|repo| get_current_branch(repo));
 
         Context {
+            cache,
             config,
             arguments,
             current_dir,
