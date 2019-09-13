@@ -57,9 +57,9 @@ impl<'a> Module<'a> {
             config,
             name: name.to_string(),
             style: Style::default(),
-            prefix: Affix::default_prefix(name),
+            prefix: Affix::default_prefix(name, config.and_then(|config| config.get_as_str("prefix")).unwrap_or("via ")),
             segments: Vec::new(),
-            suffix: Affix::default_suffix(name),
+            suffix: Affix::default_suffix(name, config.and_then(|config| config.get_as_str("suffix")).unwrap_or(" ")),
         }
     }
 
@@ -214,19 +214,19 @@ pub struct Affix {
 }
 
 impl Affix {
-    pub fn default_prefix(name: &str) -> Self {
+    pub fn default_prefix(name: &str, prefix: &str) -> Self {
         Self {
             name: format!("{}_prefix", name),
             style: Style::default(),
-            value: "via ".to_string(),
+            value: prefix.to_string(),
         }
     }
 
-    pub fn default_suffix(name: &str) -> Self {
+    pub fn default_suffix(name: &str, suffix: &str) -> Self {
         Self {
             name: format!("{}_suffix", name),
             style: Style::default(),
-            value: " ".to_string(),
+            value: suffix.to_string(),
         }
     }
 
