@@ -57,9 +57,19 @@ impl<'a> Module<'a> {
             config,
             name: name.to_string(),
             style: Style::default(),
-            prefix: Affix::default_prefix(name, config.and_then(|config| config.get_as_str("prefix")).unwrap_or("via ")),
+            prefix: Affix::default_prefix(
+                name,
+                config
+                    .and_then(|config| config.get_as_str("prefix"))
+                    .unwrap_or("via "),
+            ),
             segments: Vec::new(),
-            suffix: Affix::default_suffix(name, config.and_then(|config| config.get_as_str("suffix")).unwrap_or(" ")),
+            suffix: Affix::default_suffix(
+                name,
+                config
+                    .and_then(|config| config.get_as_str("suffix"))
+                    .unwrap_or(" "),
+            ),
         }
     }
 
