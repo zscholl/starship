@@ -31,7 +31,7 @@ pub fn module<'a>(context: &'a Context) -> Option<Module<'a>> {
     };
 
     module.set_style(module_style);
-    module.new_segment("hostname", &format!("{}", host));
+    module.new_segment("hostname", &host);
     module.get_prefix().set_value("on ");
 
     Some(module)
