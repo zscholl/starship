@@ -101,7 +101,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for SegmentConfig<'a> {
             }
         }
 
-        const FIELDS: &'static [&'static str] = &["value", "style"];
+        const FIELDS: &[&str] = &["value", "style"];
         deserializer.deserialize_struct("SegmentConfig", FIELDS, SegmentConfigVisitor)
     }
 }
