@@ -1,7 +1,9 @@
 use ansi_term::Style;
 use std::fmt;
 
-use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+use super::style::StyleDef;
+
+use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::Deserialize;
 
 #[derive(Debug)]
@@ -9,6 +11,9 @@ struct SegmentConfig<'a> {
     value: &'a str,
     style: Option<Style>,
 }
+
+#[derive(Deserialize)]
+struct StyleDefWrapper(#[serde(with = "StyleDef")] Option<Style>);
 
 impl<'de: 'a, 'a> Deserialize<'de> for SegmentConfig<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -59,19 +64,6 @@ impl<'de: 'a, 'a> Deserialize<'de> for SegmentConfig<'a> {
                 formatter.write_str("struct SegmentConfig")
             }
 
-            fn visit_seq<V>(self, mut seq: V) -> Result<SegmentConfig<'de>, V::Error>
-            where
-                V: SeqAccess<'de>,
-            {
-                let value = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                let style = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                Ok(SegmentConfig { value, style })
-            }
-
             fn visit_map<V>(self, mut map: V) -> Result<SegmentConfig<'de>, V::Error>
             where
                 V: MapAccess<'de>,
@@ -90,12 +82,14 @@ impl<'de: 'a, 'a> Deserialize<'de> for SegmentConfig<'a> {
                             if style.is_some() {
                                 return Err(de::Error::duplicate_field("style"));
                             }
-                            style = Some(map.next_value()?);
+                            let StyleDefWrapper(style_def) = map.next_value()?;
+                            style = Some(style_def);
                         }
                     }
                 }
                 let value = value.ok_or_else(|| de::Error::missing_field("value"))?;
                 let style = style.ok_or_else(|| de::Error::missing_field("style"))?;
+
                 Ok(SegmentConfig { value, style })
             }
 
@@ -109,5 +103,49 @@ impl<'de: 'a, 'a> Deserialize<'de> for SegmentConfig<'a> {
 
         const FIELDS: &'static [&'static str] = &["value", "style"];
         deserializer.deserialize_struct("SegmentConfig", FIELDS, SegmentConfigVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ansi_term::Color;
+
+    #[derive(Deserialize)]
+    struct Config<'a> {
+        #[serde(borrow)]
+        symbol: SegmentConfig<'a>,
+    }
+
+    #[test]
+    fn test_load_string() {
+        let cfg: Config = toml::from_str(
+            r#"
+        symbol = "S "
+        "#,
+        )
+        .unwrap();
+
+        assert_eq!(cfg.symbol.style, None);
+        assert_eq!(cfg.symbol.value, "S ");
+    }
+
+    #[test]
+    fn test_load_struct() {
+        #[derive(Deserialize)]
+        struct Config<'a> {
+            #[serde(borrow)]
+            symbol: SegmentConfig<'a>,
+        }
+
+        let cfg: Config = toml::from_str(
+            r#"
+        symbol = { value = "S ", style = "red bold" }
+        "#,
+        )
+        .unwrap();
+
+        assert_eq!(cfg.symbol.style, Some(Color::Red.bold()));
+        assert_eq!(cfg.symbol.value, "S ");
     }
 }

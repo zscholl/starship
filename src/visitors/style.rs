@@ -2,23 +2,24 @@ use ansi_term::{Color, Style};
 use std::fmt;
 
 use serde::de::{self, Deserializer, Visitor};
-use serde::Deserialize;
 
-impl<'de> Deserialize<'de> for Option<Style> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+pub struct StyleDef;
+
+impl<'de> StyleDef {
+    pub fn deserialize<D>(deserializer: D) -> Result<Option<Style>, D::Error>
     where
         D: Deserializer<'de>,
     {
         struct StyleVisitor;
 
         impl<'de> Visitor<'de> for StyleVisitor {
-            type Value = Style;
+            type Value = Option<Style>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("Style string")
             }
 
-            fn visit_str<E>(self, style_string: &str) -> Result<Style, E>
+            fn visit_str<E>(self, style_string: &str) -> Result<Option<Style>, E>
             where
                 E: de::Error,
             {
@@ -26,7 +27,7 @@ impl<'de> Deserialize<'de> for Option<Style> {
             }
         }
 
-        deserializer.deserialize_str("Style", StyleVisitor)
+        deserializer.deserialize_str(StyleVisitor)
     }
 }
 
@@ -136,12 +137,10 @@ fn parse_color_string(color_string: &str) -> Option<ansi_term::Color> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use toml::Value;
 
     #[test]
     fn table_get_styles_bold_italic_underline_green_dimmy_silly_caps() {
-        let config = Value::from("bOlD ItAlIc uNdErLiNe GrEeN diMMeD");
-        let mystyle = <Style>::from_config(&config).unwrap();
+        let mystyle = parse_style_string("bOlD ItAlIc uNdErLiNe GrEeN diMMeD").unwrap();
         assert!(mystyle.is_bold);
         assert!(mystyle.is_italic);
         assert!(mystyle.is_underline);
@@ -160,28 +159,26 @@ mod tests {
     #[test]
     fn table_get_styles_plain_and_broken_styles() {
         // Test a "plain" style with no formatting
-        let config = Value::from("");
-        let plain_style = <Style>::from_config(&config).unwrap();
+        let plain_style = parse_style_string("").unwrap();
         assert_eq!(plain_style, ansi_term::Style::new());
 
         // Test a string that's clearly broken
-        let config = Value::from("djklgfhjkldhlhk;j");
-        assert!(<Style>::from_config(&config).is_none());
+        let broken_style = parse_style_string("djklgfhjkldhlhk;j");
+        assert!(broken_style.is_none());
 
         // Test a string that's nullified by `none`
-        let config = Value::from("fg:red bg:green bold none");
-        assert!(<Style>::from_config(&config).is_none());
+        let nullified_style = parse_style_string("fg:red bg:green bold none");
+        assert!(nullified_style.is_none());
 
         // Test a string that's nullified by `none` at the start
-        let config = Value::from("none fg:red bg:green bold");
-        assert!(<Style>::from_config(&config).is_none());
+        let nullified_start_style = parse_style_string("none fg:red bg:green bold");
+        assert!(nullified_start_style.is_none());
     }
 
     #[test]
     fn table_get_styles_ordered() {
         // Test a background style with inverted order (also test hex + ANSI)
-        let config = Value::from("bg:#050505 underline fg:120");
-        let flipped_style = <Style>::from_config(&config).unwrap();
+        let flipped_style = parse_style_string("bg:#050505 underline fg:120").unwrap();
         assert_eq!(
             flipped_style,
             Style::new()
@@ -191,8 +188,7 @@ mod tests {
         );
 
         // Test that the last color style is always the one used
-        let config = Value::from("bg:120 bg:125 bg:127 fg:127 122 125");
-        let multi_style = <Style>::from_config(&config).unwrap();
+        let multi_style = parse_style_string("bg:120 bg:125 bg:127 fg:127 122 125").unwrap();
         assert_eq!(
             multi_style,
             Style::new().fg(Color::Fixed(125)).on(Color::Fixed(127))
