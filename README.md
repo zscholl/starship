@@ -114,7 +114,6 @@
   align="right"
 />
 
-
 **The minimal, blazing-fast, and infinitely customizable prompt for any shell!**
 
 
@@ -129,6 +128,13 @@
 <a href="https://starship.rs/"><strong>Explore the Starship docs&nbsp;&nbsp;▶</strong></a>
 </p>
 
+## 🍬 Segments
+
+<img
+  src="media/features.png"
+  alt="Starship – Cross-shell prompt"
+  width="800px"
+/>
 
 ## 🚀 Installation
 
